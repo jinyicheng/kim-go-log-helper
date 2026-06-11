@@ -20,9 +20,14 @@ type Log struct {
 	PrettyPrint bool
 }
 
+type G struct {
+}
+
+var LogrusLogger *logrus.Logger
+
 func (l *Log) Get() *logrus.Logger {
-	logger := logrus.New()
-	logger.SetReportCaller(true) // 开启调用者信息
+	LogrusLogger = logrus.New()
+	LogrusLogger.SetReportCaller(true) // 开启调用者信息
 	// 日志文件
 	fileName := path.Join(l.FilePath, l.FileName)
 
@@ -34,14 +39,14 @@ func (l *Log) Get() *logrus.Logger {
 
 	// 设置输出目标
 	if l.Env != "release" {
-		logger.Out = os.Stdout
+		LogrusLogger.Out = os.Stdout
 		// 开发环境使用文本格式更易读
-		logger.SetFormatter(&logrus.TextFormatter{
+		LogrusLogger.SetFormatter(&logrus.TextFormatter{
 			TimestampFormat: "2006-01-02 15:04:05",
 			FullTimestamp:   true,
 		})
 	} else {
-		logger.Out = src // 避免重复写入
+		LogrusLogger.Out = src // 避免重复写入
 	}
 
 	// 设置日志级别
@@ -49,7 +54,7 @@ func (l *Log) Get() *logrus.Logger {
 	if err != nil {
 		log.Fatalln(fmt.Errorf("无效的日志级别: %w", err))
 	}
-	logger.SetLevel(logLevel)
+	LogrusLogger.SetLevel(logLevel)
 
 	// 配置日志切割
 	logWriter, err := rotateLogs.New(
@@ -78,6 +83,6 @@ func (l *Log) Get() *logrus.Logger {
 		PrettyPrint:     l.PrettyPrint,
 	})
 
-	logger.AddHook(lfHook)
-	return logger
+	LogrusLogger.AddHook(lfHook)
+	return LogrusLogger
 }

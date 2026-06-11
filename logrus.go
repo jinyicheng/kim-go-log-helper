@@ -5,7 +5,7 @@ import (
 	rotateLogs "github.com/lestrrat-go/file-rotatelogs"
 	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
-	"io"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -20,16 +20,17 @@ type Log struct {
 	PrettyPrint bool
 }
 
-func (l *Log) Get() (*logrus.Logger, error) {
+func (l *Log) Get() *logrus.Logger {
 	logger := logrus.New()
 	logger.SetReportCaller(true) // 开启调用者信息
-
-	// 创建日志目录
-	if err := os.MkdirAll(l.FilePath, 0755); err != nil {
-		return nil, fmt.Errorf("创建日志目录失败: %w", err)
-	}
-
+	// 日志文件
 	fileName := path.Join(l.FilePath, l.FileName)
+
+	// 写入文件
+	src, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE, 0644)
+	if err != nil {
+		log.Fatalln(fmt.Errorf("写入日志文件失败: %w", err))
+	}
 
 	// 设置输出目标
 	if l.Env != "release" {
@@ -40,13 +41,13 @@ func (l *Log) Get() (*logrus.Logger, error) {
 			FullTimestamp:   true,
 		})
 	} else {
-		logger.Out = io.Discard // 避免重复写入
+		logger.Out = src // 避免重复写入
 	}
 
 	// 设置日志级别
 	logLevel, err := logrus.ParseLevel(strings.ToLower(l.Level))
 	if err != nil {
-		return nil, fmt.Errorf("无效的日志级别: %w", err)
+		log.Fatalln(fmt.Errorf("无效的日志级别: %w", err))
 	}
 	logger.SetLevel(logLevel)
 
@@ -62,7 +63,7 @@ func (l *Log) Get() (*logrus.Logger, error) {
 		rotateLogs.WithRotationTime(24*time.Hour),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("创建日志切割器失败: %w", err)
+		log.Fatalln(fmt.Errorf("创建日志切割器失败: %w", err))
 	}
 
 	// 简化级别映射
@@ -78,5 +79,5 @@ func (l *Log) Get() (*logrus.Logger, error) {
 	})
 
 	logger.AddHook(lfHook)
-	return logger, nil
+	return logger
 }
